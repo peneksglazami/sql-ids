@@ -1,0 +1,380 @@
+------------------------------------------
+Java IDMEF Message Implementation v.93beta
+------------------------------------------
+
+-------------
+Contributors:
+-------------
+Chris McCubbin
+JHU/APL
+christopher.mccubbin@jhuapl.edu
+
+Michael Luu
+Network Associates Technology, Inc.
+mluu@nai.com
+
+---------------
+1. Introduction
+---------------
+
+This README describes the installation and use of the edu.jhuapl.idmef package.
+
+The package is currently BETA software, and should be treated as such. Please
+report any bugs to mluu@nai.com. Also see the license section near the bottom
+of this file.
+
+The Intrusion Detection Message Exchange Format (IDMEF) provides a common 
+language for IDS software to communicate. The design is a result of the IETF
+Intrusion Detection Working Group (IDWG). More information on IDMEF and the
+IDWG can be found at http://www.ietf.org/html.charters/idwg-charter.html
+and http://www.silicondefense.com/idwg/.  The latest draft is v0.7, and can be
+found at http://search.ietf.org/internet-drafts/draft-ietf-idwg-idmef-xml-07.txt.
+
+This distribution contains a Jar file containing Java classes that implement
+creation and parsing of IDMEF messages. It does not currently contain any 
+implementation of any message exchange protocol (i.e. BEEP). 
+
+-------------------------------
+2. Installation and Compilation
+-------------------------------
+
+The distribution tar file (JavaIDMEFv0.93b.tar.gz) contains the following files:
+
+idmef.jar: The jar file containing the source and compiled versions of the
+	   classes in edu.jhuapl.idmef .
+edu/jhuapl/idmef/*: The source code of the package.
+README: This file.
+idmef-message.dtd: The XML DTD file for IDMEF version v0.7 messages.
+doc/*: The javadoc of the package.
+xerces.jar: The Apache XML Xerces package version 1.3.1 (see License section)
+build.xml: ant build script 
+build.props: properties for build
+
+To install the package:
+  1. Add idmef.jar to your classpath. 
+  2. Place idmef-message.dtd somewhere convenient (more on this in section 3.4)
+  3. Download and/or install the Apache XML Xerces distribution. The file
+     xerces.jar (v1.3.1 included) is the important one to have in your classpath.
+     Currently the package works with xerces.jar version 1.3.1.
+
+To compile the package:
+  1. install ant (http://jakarta.apache.org/ant)
+  2. type 'ant' in directory containing build.xml
+
+--------
+3. Usage
+--------
+
+To use the package, import edu.jhuapl.idmef.*; in your java files.
+
+There are two main functions of this package. One is to convert Java IDMEF
+objects into (Apache) XML objects and/or XML strings. The other is to 
+convert IDMEF XML Strings into Java IDMEF objects.
+
+The Java IDMEF classes in the package are fairly simple. There is one class
+for each aggregate class in the IDMEF design. e.g. There is a class for
+an Alert, a Source, an Address, etc. The data fields in these classes correspond
+exactly to the aggregate classes, attributes, and text data represented
+by each IDMEF class. These fields are protected but accessors are provided.
+(See the included javadoc for specifics). The classes are named exactly as they are
+in the IDMEF draft, except when these names conflict with Java keywords or other
+commonly used classes. In these cases, the prefix IDMEF_ is appended. In some cases,
+field names were made to be nonconflicting as well, for example networkInterface
+replaces the interface field (a Java keyword). Any constants in an aggregate class
+are represented as public static final variables (Java "constants"), for example, 
+an Alert's impact could have a value of Alert.UNKNOWN, Alert.ATTEMPTED_ADMIN, etc.
+
+--------------------------------------------
+3.1 Creating Java IDMEF Objects from scratch
+--------------------------------------------
+
+One may either create a class with pre-existing aggregate classes:
+ (pseudocode)
+
+  testNode = new IDMEF_Node(...);
+  testProcess = new IDMEF_Process(...);
+  analyzer = new Analyzer(testNode, 
+                          testProcess, 
+                          "<analyzerId>",
+                          "<manufacturer>",
+                          "<model>",
+                          "<inVersion>",
+                          "<analyzerClass>",
+                          "<osType>",
+                          "<osVersion>");
+
+Or use lisp-like syntax:
+
+  analyzer = new Analyzer(new IDMEF_Node(...), 
+                          new IDMEF_Process(...), 
+                          "<analyzerId>",
+                          "<manufacturer>",
+                          "<model>",
+                          "<inVersion>",
+                          "<analyzerClass>",
+                          "<osType>",
+                          "<osVersion>");
+
+Or build up an empty object:
+
+  analyzer = new Analyzer();
+  analyzer.setNode(new IDMEF_Node(...) );
+  analyzer.setProcess( new IDMEF_Process(...) );
+  analyzer.setAnalyzerId("<analyzerId>");
+  analyzer.setManufacturer("<manufacturer>");
+  ....
+ 
+The above three cases would be equivalent. 
+
+----------------------------------------
+3.2 Converting Java IDMEF objects to XML
+----------------------------------------
+
+Once the a Java IDMEF message is created (i.e. by instantiating one of the subclasses
+of the abstract class IDMEF_Message), say by the command
+
+ Alert alert = new Alert(...);
+
+then we may convert this message into an XML object by calling
+
+ Node newNode = alert.convertToXML(Document parent);
+
+Where parent is an empty DOM Document initialized to the IDMEF DTD (See the Notes section below).
+Alternatively, we may convert this object to a XML string directly by calling
+
+ alert.toString();
+
+It may be interesting to note that convertToXML() can be called on any of the classes
+in the package, which will return the XML Node tree created by that object. 
+toString(), however, is currently only meaningful on subclasses of IDMEF_Message. If called on
+other objects, toString() will return the Java default toString() method call.
+
+----------------------------------------
+3.3 Converting XML to Java IDMEF objects 
+----------------------------------------
+
+There is an overloaded static method in IDMEF_Message called createMessage(String) or
+createMessage(Document) which will take an XML String or Document and parse it into
+a Java IDMEF message object. It will automatically instantiate the correct type of
+object (i.e. Alert or Heartbeat). At that point one may read the fields of these 
+objects via their accessors.
+
+---------
+3.4 Notes
+---------
+
+The DTD used by toString() is located in the static String dtdFileLocation in 
+the IDMEF_Message class. it defaults to "./idmef-message.dtd" but it can be changed
+with the static IDMEF_Message method setDtdFileLocation(). 
+
+The DTD file path used when creating Java objects from strings is the path identified
+in the creator XML string/document header. 
+
+Currently the format of the messages is not checked to conform with the DTD, in either
+direction. Play with malformed messages at your own risk.
+
+If an object does not contain an aggregate object or data field, that thing's value
+will be null. Be sure to check for null when accessing fields. This is the reason all
+data fields are objects (e.g. Integer is used instead of int). 
+
+----------
+4. License
+----------
+
+----------------------------------------------------------------------------------------
+4.1 Submarine Technology Department, The Johns Hopkins University Applied Physics
+    Laboratory BSD Software license
+----------------------------------------------------------------------------------------
+Java IDMEF is released under the new BSD Software license. The following passage applies to 
+all software and text files in the distribution v0.92 or earlier:
+
+Copyright (c) 2001, Submarine Technology Department, The Johns Hopkins University Applied 
+Physics Laboratory.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright notice, 
+      this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice, 
+      this list of conditions and the following disclaimer in the documentation 
+      and/or other materials provided with the distribution.
+    * Neither the name of the Johns Hopkins University Applied Physics Laboratory
+      nor the names of its contributors may be used to endorse or promote products 
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY 
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES 
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
+SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+OF SUCH DAMAGE.
+
+-----------------------------------------------------------------------------------------
+4.2 Network Associates Technology, Inc. BSD Software license
+-----------------------------------------------------------------------------------------
+Java IDMEF is released under the new BSD Software license. The following passage applies to 
+all software and text files in the distribution v0.93beta:
+
+Copyright (c) 2002 Networks Associates Technology, Inc. under sponsorship of the 
+Defense Advanced Research Projects Agency (DARPA). 
+All Rights Reserved.
+
+ 
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:
+ 
+    -> Redistributions of source code must retain the above copyright notice, 
+       this list of conditions and the following disclaimer.
+
+    -> Redistributions in binary form must reproduce the above copyright notice, 
+       this list of conditions and the following disclaimer in the documentation 
+       and/or other materials provided with the distribution.
+
+    -> Neither the name of the Network Associates nor the names of its 
+       contributors may be used to endorse or promote products 
+       derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY 
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES 
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
+SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+OF SUCH DAMAGE.
+
+------------------------------------------------------------------------------------------
+4.3 Apache's Xerces XML code is linked to in this package.
+------------------------------------------------------------------------------------------
+/*
+ * The Apache Software License, Version 1.1
+ *
+ *
+ * Copyright (c) 1999-2000 The Apache Software Foundation.  All rights 
+ * reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. The end-user documentation included with the redistribution,
+ *    if any, must include the following acknowledgment:  
+ *       "This product includes software developed by the
+ *        Apache Software Foundation (http://www.apache.org/)."
+ *    Alternately, this acknowledgment may appear in the software itself,
+ *    if and wherever such third-party acknowledgments normally appear.
+ *
+ * 4. The names "Xerces" and "Apache Software Foundation" must
+ *    not be used to endorse or promote products derived from this
+ *    software without prior written permission. For written 
+ *    permission, please contact apache@apache.org.
+ *
+ * 5. Products derived from this software may not be called "Apache",
+ *    nor may "Apache" appear in their name, without prior written
+ *    permission of the Apache Software Foundation.
+ *
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE APACHE SOFTWARE FOUNDATION OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This software consists of voluntary contributions made by many
+ * individuals on behalf of the Apache Software Foundation and was
+ * originally based on software copyright (c) 1999, International
+ * Business Machines, Inc., http://www.ibm.com.  For more
+ * information on the Apache Software Foundation, please see
+ * <http://www.apache.org/>.
+ */
+
+----------
+5. Contact
+----------
+
+The original author is Chris McCubbin (christopher.mccubbin@jhuapl.edu). 
+The project that this package was created under is an internally funded 
+project named "Cildare". The project lead of Cildare is Mr. Dave Scheidt 
+(dave.scheidt@jhuapl.edu). There are no plans or funding for futher
+development under the Cildare project.
+
+The current author is Michael Luu (mluu@nai.com).  Continue development
+of this library was made possible under sponsorship of the Defense 
+Advanced Research Projects Agency (DARPA). Please report any bugs, 
+unintended features, requests, etc. to Michael.
+
+6. Future features
+
+- currently no plans to add new features except for keeping the library
+  up-to-date with the latest IDMEF specification draft.
+
+------------------
+7. Version History
+------------------
+
+0.9 
+
+Initial Release
+
+0.91 
+
+Fixed bugs where subclasses of Alert were not being read in or output correctly. 
+This included ToolAlert, CorrelationAlert, and OverflowAlert. 
+Thanks goes out to Oscar Ganteaume for catching this one.
+
+0.92
+
+Improved efficiency in Alert(Node) constructor. Thanks to Bill Reynolds 
+for this one.
+
+Added toXML() method in IDMEF_Message to create a document with the entire 
+XML tree (including the IDMEF-Message tag). This was nontrivial to to before.
+Thanks again to Bill Reynolds.
+
+Fixed bug where AdditionalData messed up if it was XML. XML data is still not handled correctly,
+ but this is being worked on for 0.93. Thanks Oscar Ganteaume for the bug report.
+
+Changed all classes that use URLs not to throw an exception when a malformed URL is discovered. 
+Instead, the string "Unknown URL" (or something like this) is substituted in the output. 
+Thanks Oscar Ganteaume for the bug report.
+
+Removed command references in CorrelationAlert class. These were cut and paste artifacts from
+the ToolAlert class, and there is no command field in CorrelationAlert. 
+Thanks Oscar Ganteaume for the bug report.
+
+0.93beta
+
+Added new aggregate classes to conform with the latest IDMEF specification draft v0.7.  These
+class include Action, Assessment, Confidence, FileList, FileAccess, File (IDMEF_File), Impact,
+Inode, and Linkage.
+
+Modified appropriate constructors to take new aggregate classes based on draft v0.7.
+
+Added support for XML data based on specification in AdditionalData.  However, there is a
+requirement for "xml" data, that is, to include an attribute of the name 
+"<object-name>:class".  Refer to the specification draft section 5.2 and 7.8.
+
+Moved all string constants into static final Strings.
